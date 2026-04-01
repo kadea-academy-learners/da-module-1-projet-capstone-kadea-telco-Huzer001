@@ -1,0 +1,128 @@
+﻿Journal de nettoyage – Projet Kadea Telco
+1. Préparation et consolidation des données
+Dans le cadre de ce projet, trois sources de données distinctes ont été exploitées :
+* Les logs réseau (événements de panne)
+* Le registre de maintenance (informations sur les antennes)
+* La base clients (données clients et churn)
+L’objectif était de consolider ces sources hétérogènes en une base unifiée exploitable pour l’analyse.
+Un premier filtrage a été effectué afin d’exclure les fichiers non pertinents (notamment les fichiers relatifs à la France), garantissant ainsi la cohérence géographique de l’étude centrée sur la RDC.
+
+
+2. Nettoyage des logs réseau
+Les différents fichiers de logs ont été combinés en une seule table à l’aide de Power Query.
+Les opérations suivantes ont été réalisées :
+* Transformation des types de données :
+La colonne Date_Heure_Panne a été convertie au format Date/Heure afin de garantir la cohérence des traitements temporels.
+* Structuration des données :
+La colonne Date_Heure_Panne a été scindée en deux colonnes distinctes (Date_Panne et Heure_Panne) afin de respecter la bonne pratique “une variable par colonne”.
+* Nettoyage des colonnes inutiles :
+La colonne Source_Name, issue de la consolidation des fichiers, a été supprimée car non pertinente pour l’analyse.
+* Gestion des valeurs manquantes :
+5 lignes comportant des valeurs nulles dans la colonne Cell_ID ont été supprimées.
+Cette opération est essentielle car Cell_ID constitue la clé de jointure avec le registre de maintenance.
+* Correction des incohérences de format :
+4 identifiants Cell_ID présentant un format incorrect (ex : “ant” au lieu de “ANT”) ont été standardisés afin d’assurer la cohérence des jointures.
+* Suppression des doublons :
+5 doublons ont été identifiés et supprimés pour éviter toute surévaluation des pannes.
+Résultat :
+La table finale des logs contient 1070 enregistrements exploitables.
+
+
+3. Nettoyage du registre de maintenance
+Les fichiers du registre de maintenance ont également été consolidés via Power Query.
+Les opérations suivantes ont été effectuées :
+   * Filtrage des valeurs manquantes critiques :
+2 lignes présentant des valeurs manquantes dans la colonne Province_RDC ont été supprimées.
+Cette colonne étant essentielle pour l’analyse géographique, ces enregistrements ne pouvaient être conservés.
+   * Suppression des colonnes techniques :
+La colonne Source_Name a été supprimée.
+   * Contrôle des doublons :
+Aucun doublon n’a été détecté dans cette table.
+Résultat :
+La table contient 498 enregistrements d’antennes.
+
+
+4. Nettoyage de la base clients
+Les données clients ont été préparées avec une attention particulière portée à leur cohérence.
+Les opérations suivantes ont été réalisées :
+      * Suppression des valeurs aberrantes :
+2 enregistrements présentant une ancienneté négative (Anciennete_Mois < 0) ont été supprimés.
+      * Suppression des colonnes inutiles :
+La colonne Source_Name a été supprimée.
+      * Contrôle des doublons :
+Aucun doublon n’a été détecté.
+      * Anonymisation des données :
+Les identifiants clients ont été anonymisés via l’ajout du préfixe “KT-”, garantissant la confidentialité des données.
+Résultat :
+La base clients contient 748 enregistrements.
+
+
+5. Réconciliation des données (croisement)
+Le croisement des logs réseau avec le registre de maintenance a été réalisé afin d’enrichir les données avec les informations géographiques et techniques.
+Deux approches ont été utilisées :
+         * Fusion de requêtes via Power Query
+         * Utilisation de la fonction RECHERCHEX dans Excel
+Après vérification, seules les valeurs ont été conservées (copier-coller en valeurs) afin d’éviter toute dépendance aux formules.
+
+
+Point critique identifié
+L’analyse révèle que 335 antennes sur 658 (soit 50,9%) ne sont pas répertoriées dans le registre de maintenance.
+Cela signifie que :
+         * Les informations géographiques (province) sont indisponibles pour plus de la moitié des antennes
+         * Une part significative des pannes ne peut pas être localisée
+Impact :
+         * Réduction de la fiabilité des analyses par région
+         * Limitation de la capacité de pilotage stratégique
+         * Risque de décisions basées sur des données incomplètes
+
+
+6. Analyse macroscopique (agrégation des données)
+Une colonne Duree_Panne_Heure a été créée à partir de Duree_Panne_Min (division par 60) afin de faciliter les analyses.
+Des tableaux croisés dynamiques ont été utilisés pour analyser les performances réseau.
+Résultats principaux :
+         * Durée totale d’indisponibilité : 584,9 heures
+         * Région la plus impactée : Nord-Kivu (40,5 heures)
+         * Les pannes sont concentrées sur une période unique : mois d’octobre
+
+
+Analyse par technologie :
+         * Les technologies 4G et 5G présentent les volumes de panne les plus élevés
+         * La 3G reste également significativement impactée
+
+
+Impact client :
+Un croisement entre la base clients et les logs (via la province) a été réalisé.
+Un filtre a été appliqué pour ne conserver que les antennes en panne (statuts “En cours” et “Non résolue”).
+Résultat :
+         * En moyenne, une panne impacte 3 clients par antenne
+
+
+7. Mise en place de la logique de rétention
+Plusieurs colonnes calculées ont été ajoutées :
+         * Anciennete_Annees = Anciennete_Mois / 12
+         * Duree_Cumulee_Panne_Heure
+         * Rabais (via SI imbriqués selon les règles métier)
+         * Montant_Rabais = Facture × Rabais
+         * Nouvelle_Facture_Mensuelle = Facture – Rabais
+Cette étape permet d’automatiser le calcul des compensations et d’estimer l’impact financier des pannes.
+
+
+8. Dashboarding et pilotage
+Les données ont été intégrées dans Power BI pour créer un dashboard interactif.
+Les KPI principaux suivis sont :
+         * Durée totale d’indisponibilité
+         * Nombre de clients impactés
+         * Taux de clients compensés
+         * Impact financier des remises
+         * Taux de couverture des antennes (data quality)
+Des visualisations (cartes, graphiques, filtres) permettent d’identifier rapidement les zones critiques.
+
+
+Conclusion
+Le processus de nettoyage et de réconciliation a permis de construire une base de données exploitable pour l’analyse des performances réseau.
+Cependant, la présence de 50,9% d’antennes non répertoriées constitue une limite majeure, affectant la précision des analyses.
+L’étude met en évidence une instabilité réseau significative, nécessitant :
+         * Une amélioration de la qualité des données
+         * Une meilleure couverture du registre de maintenance
+         * Une priorisation des zones et technologies critiques
+Ces actions sont essentielles pour améliorer la performance réseau et réduire les pertes financières.
